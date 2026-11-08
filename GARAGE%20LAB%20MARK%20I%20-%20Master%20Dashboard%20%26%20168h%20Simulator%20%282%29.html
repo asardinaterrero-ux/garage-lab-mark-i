@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GARAGE LAB · MARK I - Master Dashboard & 168h Engine</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            hud: {
+              bg: '#040814',
+              panel: 'rgba(10, 16, 35, 0.85)',
+              border: '#152445',
+              cyan: '#00f0ff',
+              amber: '#ffb700',
+              rose: '#ff0055',
+              green: '#00ff88',
+              purple: '#ab47bc'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Courier New', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts & Chart.js -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700;800&family=Inter:wght@300;400;600;700&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Tactical Command HUD Aesthetic */
+    body {
+      background-color: #030611;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.08) 0%, transparent 65%),
+        radial-gradient(circle at 85% 85%, rgba(255, 0, 85, 0.05) 0%, transparent 55%),
+        linear-gradient(to right, rgba(15, 23, 42, 0.35) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.35) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .hud-panel {
+      background: rgba(8, 14, 32, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 240, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(0, 240, 255, 0.02);
+    }
+
+    .hud-panel:hover {
+      border-color: rgba(0, 240, 255, 0.35);
+    }
+
+    .glow-cyan { text-shadow: 0 0 10px rgba(0, 240, 255, 0.65); }
+    .glow-amber { text-shadow: 0 0 10px rgba(255, 183, 0, 0.65); }
+    .glow-rose { text-shadow: 0 0 10px rgba(255, 0, 85, 0.65); }
+    .glow-green { text-shadow: 0 0 10px rgba(0, 255, 136, 0.65); }
+
+    .box-glow-cyan { box-shadow: 0 0 15px rgba(0, 240, 255, 0.25); }
+    .box-glow-amber { box-shadow: 0 0 15px rgba(255, 183, 0, 0.25); }
+    .box-glow-rose { box-shadow: 0 0 15px rgba(255, 0, 85, 0.25); }
+    
+    /* HUD Corner Marks */
+    .hud-corner { position: relative; }
+    .hud-corner::before, .hud-corner::after {
+      content: '';
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-color: rgba(0, 240, 255, 0.5);
+      pointer-events: none;
+    }
+    .hud-corner::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+    .hud-corner::after { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(5, 9, 20, 0.8); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0, 240, 255, 0.6); }
+
+    /* CRT Scanlines Overlay */
+    .scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+
+    input[type=range] { accent-color: #00f0ff; }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-x-hidden text-slate-200">
+  <div class="fixed inset-0 scanlines z-50 pointer-events-none opacity-30"></div>
+
+  <!-- HEADER BAR -->
+  <header class="hud-panel border-b border-hud-border px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-40">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-lg bg-cyan-950/80 border border-hud-cyan/40 flex items-center justify-center text-hud-cyan box-glow-cyan">
+        <i data-lucide="cpu" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-mono text-xl font-black tracking-wider text-white">GARAGE LAB <span class="text-hud-cyan">· MARK I</span></h1>
+          <span class="px-2 py-0.5 text-xs font-mono rounded bg-amber-500/10 border border-amber-500/30 text-hud-amber font-bold">BRANCH v3.7-dev (DEUDA R)</span>
+        </div>
+        <p class="text-xs text-slate-400 font-mono">168-HOUR BIO-COGNITIVE SYSTEM DYNAMICS & RECOVERY ENGINE</p>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Quick Badge -->
+    <div class="flex items-center space-x-6 text-xs font-mono bg-slate-900/90 px-4 py-2 rounded-lg border border-slate-800">
+      <div class="text-center">
+        <div class="text-slate-400 uppercase tracking-wider">Ciclo Semanal</div>
+        <div id="hud-day-text" class="text-sm font-bold text-hud-cyan glow-cyan">DÍA 1 (LUN) · 00:00h</div>
+      </div>
+      <div class="h-6 w-px bg-slate-800"></div>
+      <div class="text-center">
+        <div class="text-slate-400 uppercase tracking-wider">Hora Absoluta</div>
+        <div id="hud-hour-text" class="text-sm font-bold text-slate-100">000 / 168 h</div>
+      </div>
+      <div class="h-6 w-px bg-slate-800"></div>
+      <div class="text-center">
+        <div class="text-slate-400 uppercase tracking-wider">Estado Sistema</div>
+        <div id="hud-status-badge" class="text-xs px-2.5 py-0.5 rounded font-bold bg-emerald-500/20 text-hud-green border border-emerald-500/40">ESTABLE</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTROL SIMULACIÓN BAR -->
+  <section class="bg-slate-900/90 border-b border-hud-border px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 z-30">
+    <div class="flex items-center space-x-3">
+      <!-- Play/Pause -->
+      <button id="btn-toggle-sim" class="px-4 py-1.5 rounded font-mono text-xs font-bold flex items-center gap-2 bg-hud-cyan text-slate-950 hover:bg-cyan-300 transition-all box-glow-cyan cursor-pointer">
+        <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+        <span id="btn-toggle-sim-text">INICIAR SIMULACIÓN</span>
+      </button>
+
+      <!-- Reset -->
+      <button id="btn-reset-sim" class="px-3 py-1.5 rounded font-mono text-xs font-bold border border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-1 cursor-pointer">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        <span>REINICIAR</span>
+      </button>
+
+      <!-- Speed Selector -->
+      <div class="flex items-center space-x-1 font-mono text-xs bg-slate-950 p-1 rounded border border-slate-800">
+        <span class="text-slate-400 px-2">Velocidad:</span>
+        <button class="speed-btn px-2 py-0.5 rounded text-slate-300 hover:bg-slate-800 active-speed font-bold bg-hud-cyan text-slate-950" data-speed="1">1x</button>
+        <button class="speed-btn px-2 py-0.5 rounded text-slate-300 hover:bg-slate-800" data-speed="5">5x</button>
+        <button class="speed-btn px-2 py-0.5 rounded text-slate-300 hover:bg-slate-800" data-speed="15">15x</button>
+        <button class="speed-btn px-2 py-0.5 rounded text-slate-300 hover:bg-slate-800" data-speed="40">MAX</button>
+      </div>
+    </div>
+
+    <!-- Timeline Scrubber -->
+    <div class="flex-1 max-w-xl flex items-center space-x-3 font-mono text-xs">
+      <span class="text-slate-400 whitespace-nowrap">000h</span>
+      <input type="range" id="timeline-scrubber" min="0" max="167" value="0" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+      <span class="text-hud-cyan font-bold whitespace-nowrap">168h</span>
+    </div>
+
+    <!-- Live Injections & Reset Controls -->
+    <div class="flex items-center space-x-2">
+      <button id="btn-inject-stress" class="px-3 py-1.5 rounded font-mono text-xs font-bold bg-rose-500/20 text-hud-rose border border-rose-500/40 hover:bg-rose-500/30 transition-all flex items-center gap-1 cursor-pointer">
+        <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+        <span>+ PICO ESTRÉS</span>
+      </button>
+      <button id="btn-inject-rest" class="px-3 py-1.5 rounded font-mono text-xs font-bold bg-emerald-500/20 text-hud-green border border-emerald-500/40 hover:bg-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer">
+        <i data-lucide="shield-plus" class="w-3.5 h-3.5"></i>
+        <span>+ VENTANA REPOSO</span>
+      </button>
+      <button id="btn-reset-debt" class="px-2.5 py-1.5 rounded font-mono text-xs font-bold bg-amber-500/20 text-hud-amber border border-amber-500/40 hover:bg-amber-500/30 transition-all flex items-center gap-1 cursor-pointer" title="Reset Deuda R a 0 en tick actual">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        <span>R=0 (T_ACTUAL)</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1920px] mx-auto w-full">
+
+    <!-- KPI ROW / OVERVIEW TILES -->
+    <div class="lg:col-span-12 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <!-- Tile 1: Energy E -->
+      <div class="hud-panel p-3.5 rounded-xl hud-corner">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
+          <span>ENERGÍA (E_t)</span>
+          <i data-lucide="battery-charging" class="w-4 h-4 text-hud-cyan"></i>
+        </div>
+        <div id="kpi-energy" class="text-2xl font-mono font-extrabold text-hud-cyan glow-cyan">100.0 %</div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div id="kpi-energy-bar" class="bg-hud-cyan h-full transition-all duration-300" style="width: 100%"></div>
+        </div>
+      </div>
+
+      <!-- Tile 2: Effective Friction K_eff -->
+      <div class="hud-panel p-3.5 rounded-xl hud-corner">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
+          <span>FRICCIÓN (K_eff)</span>
+          <i data-lucide="flame" class="w-4 h-4 text-hud-rose"></i>
+        </div>
+        <div id="kpi-friction" class="text-2xl font-mono font-extrabold text-hud-rose glow-rose">15.0 %</div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div id="kpi-friction-bar" class="bg-hud-rose h-full transition-all duration-300" style="width: 15%"></div>
+        </div>
+      </div>
+
+      <!-- Tile 3: Recovery Debt R_t -->
+      <div class="hud-panel p-3.5 rounded-xl hud-corner border-amber-500/40">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
+          <span>DEUDA REC. (R_t)</span>
+          <i data-lucide="hourglass" class="w-4 h-4 text-hud-amber"></i>
+        </div>
+        <div id="kpi-debt" class="text-2xl font-mono font-extrabold text-hud-amber glow-amber">0.0 %</div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div id="kpi-debt-bar" class="bg-hud-amber h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Tile 4: Net Balance S_t = E - K_eff -->
+      <div class="hud-panel p-3.5 rounded-xl hud-corner">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
+          <span>BALANCE NETO (S_t)</span>
+          <i data-lucide="gauge" class="w-4 h-4 text-hud-green"></i>
+        </div>
+        <div id="kpi-capacity" class="text-2xl font-mono font-extrabold text-hud-green glow-green">85.0 %</div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div id="kpi-capacity-bar" class="bg-hud-green h-full transition-all duration-300" style="width: 85%"></div>
+        </div>
+      </div>
+
+      <!-- Tile 5: HRV / Resiliency (RMSSD) -->
+      <div class="hud-panel p-3.5 rounded-xl hud-corner">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
+          <span>RESILIENCIA (RMSSD)</span>
+          <i data-lucide="heart-pulse" class="w-4 h-4 text-purple-400"></i>
+        </div>
+        <div id="kpi-hrv" class="text-2xl font-mono font-extrabold text-purple-300">85 ms</div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div id="kpi-hrv-bar" class="bg-purple-500 h-full transition-all duration-300" style="width: 85%"></div>
+        </div>
+      </div>
+
+      <!-- Tile 6: Recovery Time T_rec -->
+      <div class="hud-panel p-3.5 rounded-xl hud-corner">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-mono mb-1">
+          <span>TIEMPO REC. (T_rec)</span>
+          <i data-lucide="clock" class="w-4 h-4 text-blue-400"></i>
+        </div>
+        <div id="kpi-trec" class="text-2xl font-mono font-extrabold text-blue-300">0.0 h</div>
+        <div class="text-[10px] text-slate-400 font-mono mt-1">Estimación retorno R &lt; 10%</div>
+      </div>
+    </div>
+
+    <!-- PANEL 1: TELEMETRÍA TEMPORAL -->
+    <div class="lg:col-span-8 hud-panel p-4 rounded-xl flex flex-col justify-between hud-corner min-h-[360px]">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="line-chart" class="w-5 h-5 text-hud-cyan"></i>
+          <h2 class="font-mono text-sm font-bold tracking-wider text-slate-100 uppercase">1. Telemetría Temporal — Evolución del Sistema (E, K_eff, R, S)</h2>
+        </div>
+        <div class="flex items-center space-x-3 font-mono text-xs flex-wrap">
+          <span class="flex items-center gap-1 text-hud-cyan"><span class="w-2.5 h-2.5 rounded-full bg-hud-cyan inline-block"></span> E_t</span>
+          <span class="flex items-center gap-1 text-hud-rose"><span class="w-2.5 h-2.5 rounded-full bg-hud-rose inline-block"></span> K_eff</span>
+          <span class="flex items-center gap-1 text-hud-amber"><span class="w-2.5 h-2.5 rounded-full bg-hud-amber inline-block"></span> Deuda R_t</span>
+          <span class="flex items-center gap-1 text-hud-green"><span class="w-2.5 h-2.5 rounded-full bg-hud-green inline-block"></span> Balance S_t</span>
+        </div>
+      </div>
+      <div class="flex-1 relative w-full h-[280px]">
+        <canvas id="chart-telemetry"></canvas>
+      </div>
+    </div>
+
+    <!-- PANEL 2: SANKEY DINÁMICO DE RECURSOS (NORMALIZADO 100%) -->
+    <div class="lg:col-span-4 hud-panel p-4 rounded-xl flex flex-col justify-between hud-corner">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="git-fork" class="w-5 h-5 text-hud-amber"></i>
+            <h2 class="font-mono text-sm font-bold tracking-wider text-slate-100 uppercase">2. Diagrama de Flujos (Sankey Dynamic)</h2>
+          </div>
+          <span id="sankey-total-badge" class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-hud-green border border-emerald-500/40 font-bold">∑ = 100.0%</span>
+        </div>
+        <p class="text-xs text-slate-400 font-mono mb-4">Balance normalizado entre procesamiento útil, fricción y reserva latente.</p>
+        
+        <div class="space-y-4 font-mono text-xs">
+          <!-- Flow Entry -->
+          <div class="p-2.5 rounded bg-slate-900/90 border border-hud-cyan/30 flex items-center justify-between">
+            <span class="text-hud-cyan font-bold flex items-center gap-2">
+              <i data-lucide="arrow-right-circle" class="w-4 h-4"></i> DISPONIBILIDAD TOTAL ENTRADA
+            </span>
+            <span class="text-sm font-bold text-white">100.0 %</span>
+          </div>
+
+          <div class="flex justify-center my-1 text-slate-500">
+            <i data-lucide="chevrons-down" class="w-5 h-5 animate-pulse"></i>
+          </div>
+
+          <!-- Flow Outputs Split -->
+          <div class="space-y-2.5">
+            <!-- Output 1: Procesamiento Útil -->
+            <div class="p-3 rounded bg-slate-900/60 border border-emerald-500/30">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-hud-green font-bold flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-hud-green"></span> PROCESAMIENTO ÚTIL
+                </span>
+                <span id="sankey-proc-val" class="font-bold text-hud-green text-sm">55.0 %</span>
+              </div>
+              <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                <div id="sankey-proc-bar" class="bg-hud-green h-full transition-all duration-300" style="width: 55%"></div>
+              </div>
+            </div>
+
+            <!-- Output 2: Fricción Penalizada -->
+            <div class="p-3 rounded bg-slate-900/60 border border-rose-500/30">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-hud-rose font-bold flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-hud-rose"></span> FRICCIÓN & DISIPACIÓN
+                </span>
+                <span id="sankey-fric-val" class="font-bold text-hud-rose text-sm">25.0 %</span>
+              </div>
+              <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                <div id="sankey-fric-bar" class="bg-hud-rose h-full transition-all duration-300" style="width: 25%"></div>
+              </div>
+            </div>
+
+            <!-- Output 3: Reserva Latente -->
+            <div class="p-3 rounded bg-slate-900/60 border border-amber-500/30">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-hud-amber font-bold flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-hud-amber"></span> RESERVA LATENTE
+                </span>
+                <span id="sankey-res-val" class="font-bold text-hud-amber text-sm">20.0 %</span>
+              </div>
+              <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                <div id="sankey-res-bar" class="bg-hud-amber h-full transition-all duration-300" style="width: 20%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] font-mono text-slate-400 flex items-center justify-between">
+        <span>ESTADO DE FLUTO:</span>
+        <span id="sankey-status-text" class="text-hud-cyan font-bold">BALANCEADO (100.0%)</span>
+      </div>
+    </div>
+
+    <!-- PANEL 3: SISTEMAS DINÁMICOS (RMSSD SINTÉTICO) -->
+    <div class="lg:col-span-4 hud-panel p-4 rounded-xl flex flex-col justify-between hud-corner min-h-[340px]">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="activity" class="w-5 h-5 text-hud-green"></i>
+            <h2 class="font-mono text-sm font-bold tracking-wider text-slate-100 uppercase">3. Sistemas Dinámicos — HRV (RMSSD)</h2>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold">MODELO SINTÉTICO</span>
+        </div>
+        <p class="text-xs text-slate-400 font-mono mb-2">Variabilidad sintética (ms) frente al umbral de seguridad ($S_t \le 0$).</p>
+        
+        <div class="relative w-full h-[200px]">
+          <canvas id="chart-dynamics"></canvas>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mt-3 font-mono text-xs">
+        <div class="bg-slate-900/80 p-2 rounded border border-slate-800">
+          <div class="text-slate-400 text-[10px]">TASA DE REGENERACIÓN</div>
+          <div id="dyn-rec-rate" class="text-hud-green font-bold text-sm">+8.5 %/h</div>
+        </div>
+        <div class="bg-slate-900/80 p-2 rounded border border-slate-800">
+          <div class="text-slate-400 text-[10px]">MULTIPLICADOR K_eff</div>
+          <div id="dyn-deg-rate" class="text-hud-rose font-bold text-sm">1.00x</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 4: COMPARATIVA DE MODELOS (v3.6 Lineal vs v3.7 No Lineal) -->
+    <div class="lg:col-span-4 hud-panel p-4 rounded-xl flex flex-col justify-between hud-corner min-h-[340px]">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="sliders" class="w-5 h-5 text-purple-400"></i>
+            <h2 class="font-mono text-sm font-bold tracking-wider text-slate-100 uppercase">4. Comparativa: Modelo v3.6 vs v3.7</h2>
+          </div>
+          <span class="text-[10px] font-mono text-hud-amber font-bold">EFECTO HISTERESIS R_t</span>
+        </div>
+        <p class="text-xs text-slate-400 font-mono mb-2">Divergencia entre modelo sin memoria (v3.6) y modelo con Deuda R_t (v3.7).</p>
+
+        <div class="relative w-full h-[200px]">
+          <canvas id="chart-comparative"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/80 p-2 rounded border border-slate-800 font-mono text-xs flex justify-between items-center mt-3">
+        <span class="text-slate-400">DIVERGENCIA DE BALANCE:</span>
+        <span id="comp-safety-margin" class="text-hud-amber font-bold text-sm">0.0 %</span>
+      </div>
+    </div>
+
+    <!-- PANEL 5: DIAGRAMA DE BLOQUES ARQUITECTURA MARK I -->
+    <div class="lg:col-span-4 hud-panel p-4 rounded-xl flex flex-col justify-between hud-corner">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="network" class="w-5 h-5 text-hud-cyan"></i>
+            <h2 class="font-mono text-sm font-bold tracking-wider text-slate-100 uppercase">5. Arquitectura MARK I — Bloques</h2>
+          </div>
+          <span class="text-[10px] font-mono text-hud-cyan animate-pulse">ACTIVE ENGINE</span>
+        </div>
+
+        <div class="space-y-2 font-mono text-xs">
+          <!-- Block 1 -->
+          <div id="arch-node-1" class="arch-node p-2.5 rounded bg-slate-900/90 border border-slate-800 flex items-center justify-between transition-all">
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-slate-400 font-bold text-[10px]">01</div>
+              <div>
+                <div class="font-bold text-slate-200">INPUT DATA</div>
+                <div class="text-[10px] text-slate-400">Variables K_t y Rec_t de 168h</div>
+              </div>
+            </div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-hud-cyan border border-cyan-800">STREAMING</span>
+          </div>
+
+          <div class="text-center text-slate-600 -my-1"><i data-lucide="arrow-down" class="w-3 h-3 mx-auto"></i></div>
+
+          <!-- Block 2 -->
+          <div id="arch-node-2" class="arch-node p-2.5 rounded bg-slate-900/90 border border-amber-500/40 flex items-center justify-between transition-all box-glow-amber">
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded bg-amber-950 flex items-center justify-center text-hud-amber font-bold text-[10px]">02</div>
+              <div>
+                <div class="font-bold text-hud-amber">COGNITIVE GOLD ENGINE (v3.7)</div>
+                <div class="text-[10px] text-slate-400">Ecuaciones discretas de Deuda R_t</div>
+              </div>
+            </div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-hud-amber border border-amber-800">PROCESSING</span>
+          </div>
+
+          <div class="text-center text-slate-600 -my-1"><i data-lucide="arrow-down" class="w-3 h-3 mx-auto"></i></div>
+
+          <!-- Split Block 3 & 4 -->
+          <div class="grid grid-cols-2 gap-2">
+            <div id="arch-node-3" class="arch-node p-2 rounded bg-slate-900/90 border border-slate-800 text-center transition-all">
+              <div class="font-bold text-hud-cyan text-[11px]">TELEMETRÍA</div>
+              <div class="text-[9px] text-slate-400">Mediciones t(0...168h)</div>
+            </div>
+            <div id="arch-node-4" class="arch-node p-2 rounded bg-slate-900/90 border border-slate-800 text-center transition-all">
+              <div class="font-bold text-hud-green text-[11px]">RESILIENCIA</div>
+              <div class="text-[9px] text-slate-400">Análisis HRV / RMSSD</div>
+            </div>
+          </div>
+
+          <div class="text-center text-slate-600 -my-1"><i data-lucide="arrow-down" class="w-3 h-3 mx-auto"></i></div>
+
+          <!-- Block 5 -->
+          <div id="arch-node-5" class="arch-node p-2.5 rounded bg-slate-900/90 border border-hud-cyan/40 flex items-center justify-between transition-all">
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded bg-cyan-950 flex items-center justify-center text-hud-cyan font-bold text-[10px]">05</div>
+              <div>
+                <div class="font-bold text-hud-cyan">CONTROL ROOM</div>
+                <div class="text-[10px] text-slate-400">Master Dashboard Integrado</div>
+              </div>
+            </div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-hud-green border border-emerald-800">RENDERED</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-2 text-[10px] font-mono text-slate-400 flex justify-between items-center">
+        <span>RAMA ACTIVA: <span class="text-white">feature/recovery-debt-R</span></span>
+        <span>MODO: <span class="text-hud-cyan">SINTÉTICO 168H</span></span>
+      </div>
+    </div>
+
+    <!-- PANEL INFERIOR: BITÁCORA Y AJUSTE DE PARÁMETROS -->
+    <div class="lg:col-span-12 hud-panel p-4 rounded-xl hud-corner grid grid-cols-1 md:grid-cols-12 gap-4">
+      
+      <!-- Event Log -->
+      <div class="md:col-span-6 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2 font-mono text-xs font-bold text-slate-200">
+            <i data-lucide="terminal" class="w-4 h-4 text-hud-cyan"></i>
+            <span>BITÁCORA DE AUDITORÍA Y SIMULACIÓN EN TIEMPO REAL</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400">BRANCH v3.7-dev</span>
+        </div>
+        
+        <div id="sim-log-box" class="h-32 overflow-y-auto bg-slate-950 p-2.5 rounded border border-slate-800 font-mono text-[11px] space-y-1 text-slate-300">
+          <div class="text-slate-500">[000h 00:00] Motor MARK I inicializado. Modelo de Deuda R_t activo.</div>
+          <div class="text-hud-cyan">[000h 00:00] Escenario A cargado: Horas 0-47 (Estabilidad basal).</div>
+        </div>
+      </div>
+
+      <!-- Real-time Modulators & Sliders -->
+      <div class="md:col-span-6 bg-slate-900/80 p-3 rounded-lg border border-slate-800 flex flex-col justify-between font-mono text-xs">
+        <div class="font-bold text-slate-200 mb-2 flex items-center justify-between">
+          <span>PARÁMETROS MATEMÁTICOS DE DEUDA R_t</span>
+          <i data-lucide="sliders-horizontal" class="w-4 h-4 text-hud-amber"></i>
+        </div>
+
+        <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+          <!-- Alpha Slider -->
+          <div>
+            <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+              <span>Acumulación (α)</span>
+              <span id="val-slider-alpha" class="text-hud-cyan">0.08</span>
+            </div>
+            <input type="range" id="slider-alpha" min="0.01" max="0.25" step="0.01" value="0.08" class="w-full h-1.5 bg-slate-950 rounded appearance-none cursor-pointer">
+          </div>
+
+          <!-- Beta Slider -->
+          <div>
+            <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+              <span>Amortización (β)</span>
+              <span id="val-slider-beta" class="text-hud-green">0.12</span>
+            </div>
+            <input type="range" id="slider-beta" min="0.02" max="0.30" step="0.01" value="0.12" class="w-full h-1.5 bg-slate-950 rounded appearance-none cursor-pointer">
+          </div>
+
+          <!-- Gamma Slider -->
+          <div>
+            <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+              <span>Impacto K_eff (γ)</span>
+              <span id="val-slider-gamma" class="text-hud-rose">0.025</span>
+            </div>
+            <input type="range" id="slider-gamma" min="0.005" max="0.08" step="0.005" value="0.025" class="w-full h-1.5 bg-slate-950 rounded appearance-none cursor-pointer">
+          </div>
+
+          <!-- Threshold Basal C_t Slider -->
+          <div>
+            <div class="flex justify-between text-[11px] text-slate-400 mb-0.5">
+              <span>Capacidad Basal (C_t)</span>
+              <span id="val-slider-ct" class="text-hud-amber">15.0</span>
+            </div>
+            <input type="range" id="slider-ct" min="5.0" max="30.0" step="1.0" value="15.0" class="w-full h-1.5 bg-slate-950 rounded appearance-none cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DISCLAIMER / AVISO METODOLÓGICO SINTÉTICO -->
+    <div class="lg:col-span-12 p-3 bg-slate-900/40 border border-slate-800/60 rounded-xl text-center font-mono text-[11px] text-slate-400">
+      <span class="text-hud-amber font-bold">AVISO METODOLÓGICO Y DE AUDITORÍA:</span> Este simulador es un modelo matemático sintético de control de sistemas ($S = E - K_{eff}(R)$). Las métricas como HRV/RMSSD y los tiempos de recuperación se generan algorítmicamente para pruebas de concepto e ingeniería y <span class="text-slate-300 underline decoration-amber-500/50">NO constituyen diagnósticos fisiológicos reales ni mediciones clínicas sobre el organismo humano</span>.
+    </div>
+
+  </main>
+
+  <!-- JAVASCRIPT ENGINE & FIXED INTERACTION LOGIC -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Global Constants
+    const TOTAL_HOURS = 168;
+    const DAYS = ['DÍA 1 (LUN)', 'DÍA 2 (MAR)', 'DÍA 3 (MIÉ)', 'DÍA 4 (JUE)', 'DÍA 5 (VIE)', 'DÍA 6 (SÁB)', 'DÍA 7 (DOM)'];
+
+    // Configurable Parameters for Recovery Engine
+    let config = {
+      alpha: 0.08,        // Accumulation rate
+      beta: 0.12,         // Amortization efficiency
+      lambda_r: 0.015,    // Hysteresis factor
+      gamma: 0.025,       // K_eff penalty factor
+      eta: 12.0,          // Energy regen rate
+      lambda_e: 0.01,     // Energy penalty factor
+      c: 0.45,            // Energy consumption rate
+      C_t: 15.0,          // Basal capacity threshold
+      R_max: 100.0,       // Max Debt Cap
+      E_max: 100.0,       // Max Energy Cap
+      R_threshold: 10.0   // Stability Threshold
+    };
+
+    // Full 168h Datasets
+    const simData = {
+      hours: [],
+      K_t: [],
+      Rec_t: [],
+      E_t: [],
+      R_t: [],
+      K_eff: [],
+      S_t: [],
+      S_linear: [],
+      hrv: [],
+      T_rec: [],
+      procFlow: [],
+      fricFlow: [],
+      resFlow: []
+    };
+
+    // Current Playback State
+    let currentHour = 0;
+    let isRunning = false;
+    let simSpeed = 1;
+    let timerId = null;
+
+    // Generate Base Scenarios inputs (K_t & Rec_t) only
+    function initBaseInputs() {
+      simData.hours = [];
+      simData.K_t = [];
+      simData.Rec_t = [];
+
+      for (let h = 0; h < TOTAL_HOURS; h++) {
+        simData.hours.push(h);
+
+        const dayHour = h % 24;
+        const isSleepHour = dayHour >= 0 && dayHour < 7;
+
+        let K_raw = 0;
+        let Rec_raw = 0;
+
+        if (h < 48) {
+          // Scenario A: Stability (0-47h)
+          Rec_raw = isSleepHour ? 1.0 : 0.1;
+          K_raw = isSleepHour ? 0.0 : (dayHour >= 9 && dayHour <= 18 ? 22.0 : 10.0);
+        } else if (h < 120) {
+          // Scenario B: Overload (48-119h)
+          Rec_raw = isSleepHour ? (dayHour >= 2 && dayHour < 6 ? 0.4 : 0.0) : 0.0;
+          K_raw = isSleepHour ? 5.0 : (dayHour >= 8 && dayHour <= 21 ? 48.0 : 25.0);
+        } else {
+          // Scenario C: Recovery (120-167h)
+          Rec_raw = isSleepHour ? 1.0 : 0.85;
+          K_raw = isSleepHour ? 0.0 : 8.0;
+        }
+
+        simData.K_t.push(K_raw);
+        simData.Rec_t.push(Rec_raw);
+      }
+    }
+
+    // Forward simulation solver starting from startHour to end of timeline (167h)
+    // FIX 1 & 2: Preserves past history (0 ... startHour-1) and recalculates forward.
+    function propagateSimulationForward(startHour = 0, forcedState = null) {
+      if (simData.K_t.length === 0) initBaseInputs();
+
+      let E_curr = (startHour === 0) ? 100.0 : simData.E_t[startHour - 1];
+      let R_curr = (startHour === 0) ? 0.0 : simData.R_t[startHour - 1];
+      let E_lin = (startHour === 0) ? 100.0 : simData.E_t[startHour - 1]; // Simplified linear baseline tracking
+
+      // Apply forced state at startHour if provided (e.g. for R=0 intervention)
+      if (forcedState !== null) {
+        if (forcedState.E_t !== undefined) E_curr = forcedState.E_t;
+        if (forcedState.R_t !== undefined) R_curr = forcedState.R_t;
+      }
+
+      for (let h = startHour; h < TOTAL_HOURS; h++) {
+        const K_raw = simData.K_t[h];
+        const Rec_raw = simData.Rec_t[h];
+
+        // Discrete Equations Recovery Engine (v3.7)
+        const O_t = Math.max(0.0, K_raw - config.C_t);
+
+        const delta_R = config.alpha * O_t * (1.0 - R_curr / config.R_max);
+        const recov_R = config.beta * Rec_raw * Math.exp(-config.lambda_r * R_curr);
+        const R_next = Math.min(config.R_max, Math.max(0.0, R_curr + delta_R - recov_R));
+
+        const K_eff = K_raw * (1.0 + config.gamma * R_curr);
+
+        const regen_E = config.eta * Rec_raw * Math.exp(-config.lambda_e * R_curr);
+        const drain_E = config.c * K_eff;
+        const E_next = Math.min(config.E_max, Math.max(0.0, E_curr + regen_E - drain_E));
+
+        const S_t = E_curr - K_eff;
+
+        // Baseline Linear Model (v3.6 without R)
+        const S_lin = E_lin - K_raw;
+        E_lin = Math.min(config.E_max, Math.max(0.0, E_lin + (config.eta * Rec_raw) - (config.c * K_raw)));
+
+        // HRV Synthetic (RMSSD)
+        const hrv = Math.min(110, Math.max(15, 85 - (R_curr * 0.75) + (S_t * 0.2)));
+
+        // Estimate T_rec (hours to clear debt below R_threshold)
+        let estimatedTrec = 0;
+        if (R_curr > config.R_threshold) {
+          const netClearancePerHour = (config.beta * 0.9 * Math.exp(-config.lambda_r * R_curr));
+          estimatedTrec = netClearancePerHour > 0 ? (R_curr - config.R_threshold) / netClearancePerHour : 99;
+        }
+
+        // --- FIX 3: SANKEY FLOW NORMALIZATION (STRICTLY SUMS TO 100.0%) ---
+        let rawProc = Math.max(5.0, S_t * 0.65);
+        let rawFric = Math.max(5.0, K_eff * 0.85);
+        let rawRes = Math.max(5.0, 100.0 - (S_t * 0.3) - (K_eff * 0.4));
+        
+        const sumFlows = rawProc + rawFric + rawRes;
+        const proc = (rawProc / sumFlows) * 100.0;
+        const fric = (rawFric / sumFlows) * 100.0;
+        const res = (rawRes / sumFlows) * 100.0;
+
+        // Write into arrays (overwrite from startHour onwards)
+        simData.E_t[h] = E_curr;
+        simData.R_t[h] = R_curr;
+        simData.K_eff[h] = K_eff;
+        simData.S_t[h] = S_t;
+        simData.S_linear[h] = S_lin;
+        simData.hrv[h] = hrv;
+        simData.T_rec[h] = estimatedTrec;
+        simData.procFlow[h] = proc;
+        simData.fricFlow[h] = fric;
+        simData.resFlow[h] = res;
+
+        // State Transition
+        E_curr = E_next;
+        R_curr = R_next;
+      }
+    }
+
+    // Chart Handles
+    let chartTelemetry, chartDynamics, chartComparative;
+
+    // Initialize Chart.js Graphs
+    function initCharts() {
+      const ctxTel = document.getElementById('chart-telemetry').getContext('2d');
+      const ctxDyn = document.getElementById('chart-dynamics').getContext('2d');
+      const ctxComp = document.getElementById('chart-comparative').getContext('2d');
+
+      const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0 },
+        scales: {
+          x: {
+            grid: { color: 'rgba(30, 41, 59, 0.4)' },
+            ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+          },
+          y: {
+            grid: { color: 'rgba(30, 41, 59, 0.4)' },
+            ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+          }
+        },
+        plugins: { legend: { display: false } }
+      };
+
+      // 1. Telemetry Chart
+      chartTelemetry = new Chart(ctxTel, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            { label: 'Energía (E_t)', data: [], borderColor: '#00f0ff', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+            { label: 'Fricción (K_eff)', data: [], borderColor: '#ff0055', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+            { label: 'Deuda Rec. (R_t)', data: [], borderColor: '#ffb700', borderWidth: 2.5, pointRadius: 0, tension: 0.2, fill: true, backgroundColor: 'rgba(255, 183, 0, 0.08)' },
+            { label: 'Balance Net (S_t)', data: [], borderColor: '#00ff88', borderWidth: 2, pointRadius: 0, tension: 0.2 }
+          ]
+        },
+        options: commonOptions
+      });
+
+      // 2. Dynamics HRV Chart
+      chartDynamics = new Chart(ctxDyn, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            { label: 'RMSSD (ms)', data: [], borderColor: '#c084fc', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+            { label: 'Umbral Crítico (0.0)', data: [], borderColor: '#ff0055', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 }
+          ]
+        },
+        options: commonOptions
+      });
+
+      // 3. Comparative Chart (v3.6 vs v3.7)
+      chartComparative = new Chart(ctxComp, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            { label: 'S_t (v3.7 con Deuda R)', data: [], borderColor: '#ffb700', borderWidth: 2.5, pointRadius: 0 },
+            { label: 'S Lineal (v3.6 Baseline)', data: [], borderColor: '#60a5fa', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 }
+          ]
+        },
+        options: commonOptions
+      });
+    }
+
+    // Render Step at Current Hour
+    function renderStep(hour) {
+      currentHour = hour;
+
+      const E = simData.E_t[hour];
+      const K = simData.K_eff[hour];
+      const R = simData.R_t[hour];
+      const S = simData.S_t[hour];
+      const S_lin = simData.S_linear[hour];
+      const hrv = Math.round(simData.hrv[hour]);
+      const trec = simData.T_rec[hour];
+
+      const dayIndex = Math.floor(hour / 24);
+      const dayHour = hour % 24;
+      const dayHourStr = String(dayHour).padStart(2, '0') + ':00h';
+
+      // Header Updates
+      document.getElementById('hud-day-text').innerText = `${DAYS[dayIndex]} · ${dayHourStr}`;
+      document.getElementById('hud-hour-text').innerText = `${String(hour).padStart(3, '0')} / 168 h`;
+      document.getElementById('timeline-scrubber').value = hour;
+
+      // Status Badge Logic
+      const statusBadge = document.getElementById('hud-status-badge');
+      if (S <= 0 || R > 60) {
+        statusBadge.className = 'text-xs px-2.5 py-0.5 rounded font-bold bg-rose-500/20 text-hud-rose border border-rose-500/40 glow-rose animate-pulse';
+        statusBadge.innerText = 'CRÍTICO / ALTA DEUDA R_t';
+      } else if (S < 35 || R > 30) {
+        statusBadge.className = 'text-xs px-2.5 py-0.5 rounded font-bold bg-amber-500/20 text-hud-amber border border-amber-500/40';
+        statusBadge.innerText = 'PRECAUCIÓN / ESTRÉS';
+      } else {
+        statusBadge.className = 'text-xs px-2.5 py-0.5 rounded font-bold bg-emerald-500/20 text-hud-green border border-emerald-500/40';
+        statusBadge.innerText = 'ESTABLE / BIENESTAR';
+      }
+
+      // KPI Tiles Updates
+      document.getElementById('kpi-energy').innerText = `${E.toFixed(1)} %`;
+      document.getElementById('kpi-energy-bar').style.width = `${Math.min(100, E)}%`;
+
+      document.getElementById('kpi-friction').innerText = `${K.toFixed(1)} %`;
+      document.getElementById('kpi-friction-bar').style.width = `${Math.min(100, K)}%`;
+
+      document.getElementById('kpi-debt').innerText = `${R.toFixed(1)} %`;
+      document.getElementById('kpi-debt-bar').style.width = `${Math.min(100, R)}%`;
+
+      document.getElementById('kpi-capacity').innerText = `${S.toFixed(1)} %`;
+      document.getElementById('kpi-capacity-bar').style.width = `${Math.max(0, Math.min(100, S))}%`;
+
+      document.getElementById('kpi-hrv').innerText = `${hrv} ms`;
+      document.getElementById('kpi-hrv-bar').style.width = `${Math.min(100, hrv)}%`;
+
+      document.getElementById('kpi-trec').innerText = `${trec.toFixed(1)} h`;
+
+      // Sankey Breakdown Update with exact 100.0% validation
+      const pFlow = simData.procFlow[hour];
+      const fFlow = simData.fricFlow[hour];
+      const rFlow = simData.resFlow[hour];
+      const totalSum = (pFlow + fFlow + rFlow).toFixed(1);
+
+      document.getElementById('sankey-proc-val').innerText = `${pFlow.toFixed(1)} %`;
+      document.getElementById('sankey-proc-bar').style.width = `${pFlow.toFixed(1)}%`;
+
+      document.getElementById('sankey-fric-val').innerText = `${fFlow.toFixed(1)} %`;
+      document.getElementById('sankey-fric-bar').style.width = `${fFlow.toFixed(1)}%`;
+
+      document.getElementById('sankey-res-val').innerText = `${rFlow.toFixed(1)} %`;
+      document.getElementById('sankey-res-bar').style.width = `${rFlow.toFixed(1)}%`;
+
+      document.getElementById('sankey-total-badge').innerText = `∑ = ${totalSum}%`;
+
+      const sankeyStatus = document.getElementById('sankey-status-text');
+      if (fFlow > 40) {
+        sankeyStatus.innerText = 'DISIPACIÓN SEVERA POR FRICCIÓN';
+        sankeyStatus.className = 'text-hud-rose font-bold';
+      } else if (pFlow > 50) {
+        sankeyStatus.innerText = 'MÁXIMO TRABAJO ÚTIL';
+        sankeyStatus.className = 'text-hud-green font-bold';
+      } else {
+        sankeyStatus.innerText = 'ACUMULACIÓN DE RESERVA';
+        sankeyStatus.className = 'text-hud-cyan font-bold';
+      }
+
+      // Dynamic Rates Text
+      const recRate = dayHour < 7 ? `+${(config.beta * 80).toFixed(1)} %/h` : `+${(config.beta * 10).toFixed(1)} %/h`;
+      const K_mult = (1.0 + config.gamma * R).toFixed(2);
+      document.getElementById('dyn-rec-rate').innerText = recRate;
+      document.getElementById('dyn-deg-rate').innerText = `${K_mult}x`;
+
+      // Comparative Divergence
+      const divergence = (S_lin - S).toFixed(1);
+      const divEl = document.getElementById('comp-safety-margin');
+      divEl.innerText = `${divergence >= 0 ? '-' : '+'}${Math.abs(divergence)} %`;
+      divEl.className = divergence > 15 ? 'text-hud-rose font-bold text-sm glow-rose' : 'text-hud-amber font-bold text-sm';
+
+      // Update Charts Window (Show last 36 hours for clarity)
+      const windowSize = 36;
+      const startH = Math.max(0, hour - windowSize);
+      const labelsSlice = simData.hours.slice(startH, hour + 1).map(h => `${h}h`);
+
+      // 1. Telemetry Chart
+      chartTelemetry.data.labels = labelsSlice;
+      chartTelemetry.data.datasets[0].data = simData.E_t.slice(startH, hour + 1);
+      chartTelemetry.data.datasets[1].data = simData.K_eff.slice(startH, hour + 1);
+      chartTelemetry.data.datasets[2].data = simData.R_t.slice(startH, hour + 1);
+      chartTelemetry.data.datasets[3].data = simData.S_t.slice(startH, hour + 1);
+      chartTelemetry.update();
+
+      // 2. Dynamics Chart
+      chartDynamics.data.labels = labelsSlice;
+      chartDynamics.data.datasets[0].data = simData.hrv.slice(startH, hour + 1);
+      chartDynamics.data.datasets[1].data = Array(labelsSlice.length).fill(0);
+      chartDynamics.update();
+
+      // 3. Comparative Chart
+      chartComparative.data.labels = labelsSlice;
+      chartComparative.data.datasets[0].data = simData.S_t.slice(startH, hour + 1);
+      chartComparative.data.datasets[1].data = simData.S_linear.slice(startH, hour + 1);
+      chartComparative.update();
+
+      // Animate Architecture Nodes
+      animateArchitectureNodes(hour);
+    }
+
+    // Node Highlight Animation
+    function animateArchitectureNodes(hour) {
+      const nodes = [
+        document.getElementById('arch-node-1'),
+        document.getElementById('arch-node-2'),
+        document.getElementById('arch-node-3'),
+        document.getElementById('arch-node-4'),
+        document.getElementById('arch-node-5')
+      ];
+
+      const activeIdx = (hour % 5);
+      nodes.forEach((node, i) => {
+        if (i === activeIdx) {
+          node.classList.add('border-hud-cyan', 'box-glow-cyan');
+        } else if (i !== 1) {
+          node.classList.remove('border-hud-cyan', 'box-glow-cyan');
+        }
+      });
+    }
+
+    // Event Logger
+    function logEvent(message, type = 'normal') {
+      const logBox = document.getElementById('sim-log-box');
+      const timeTag = `[${String(currentHour).padStart(3, '0')}h ${String(currentHour % 24).padStart(2, '0')}:00]`;
+      const entry = document.createElement('div');
+      
+      if (type === 'alert') entry.className = 'text-hud-rose font-bold';
+      else if (type === 'success') entry.className = 'text-hud-green';
+      else if (type === 'info') entry.className = 'text-hud-cyan';
+      else entry.className = 'text-slate-400';
+
+      entry.innerText = `${timeTag} ${message}`;
+      logBox.appendChild(entry);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // Playback Controls
+    function startSimulation() {
+      if (isRunning) return;
+      isRunning = true;
+      document.getElementById('btn-toggle-sim-text').innerText = 'PAUSAR SIMULACIÓN';
+      const playIcon = document.querySelector('#btn-toggle-sim i');
+      playIcon.setAttribute('data-lucide', 'pause');
+      lucide.createIcons();
+
+      logEvent('Motor de simulación iniciado (168h continuas).', 'info');
+
+      timerId = setInterval(() => {
+        if (currentHour < TOTAL_HOURS - 1) {
+          renderStep(currentHour + 1);
+          
+          if (currentHour === 48) {
+            logEvent('INICIO ESCENARIO B: Sobrecarga de Estrés y privación de descanso (48h-119h).', 'alert');
+          } else if (currentHour === 120) {
+            logEvent('INICIO ESCENARIO C: Ventana de Recuperación Progresiva (120h-167h).', 'success');
+          }
+          
+          if (simData.S_t[currentHour] <= 0) {
+            logEvent(`ALERTA CRÍTICA: Balance S_t <= 0 (${simData.S_t[currentHour].toFixed(1)}%). Deuda R_t = ${simData.R_t[currentHour].toFixed(1)}%`, 'alert');
+          }
+        } else {
+          pauseSimulation();
+          logEvent('Ciclo completo de 168 horas alcanzado con éxito.', 'success');
+        }
+      }, 1000 / simSpeed);
+    }
+
+    function pauseSimulation() {
+      isRunning = false;
+      clearInterval(timerId);
+      document.getElementById('btn-toggle-sim-text').innerText = 'REANUDAR';
+      const playIcon = document.querySelector('#btn-toggle-sim i');
+      playIcon.setAttribute('data-lucide', 'play');
+      lucide.createIcons();
+      logEvent('Simulación en pausa.', 'normal');
+    }
+
+    function resetSimulation() {
+      pauseSimulation();
+      initBaseInputs();
+      propagateSimulationForward(0);
+      renderStep(0);
+      logEvent('Sistema reiniciado a T0 (000h). Datasets base restaurados.', 'info');
+    }
+
+    // Slider Parameter Recalculation
+    function recalculateEngine() {
+      config.alpha = parseFloat(document.getElementById('slider-alpha').value);
+      config.beta = parseFloat(document.getElementById('slider-beta').value);
+      config.gamma = parseFloat(document.getElementById('slider-gamma').value);
+      config.C_t = parseFloat(document.getElementById('slider-ct').value);
+
+      document.getElementById('val-slider-alpha').innerText = config.alpha.toFixed(2);
+      document.getElementById('val-slider-beta').innerText = config.beta.toFixed(2);
+      document.getElementById('val-slider-gamma').innerText = config.gamma.toFixed(3);
+      document.getElementById('val-slider-ct').innerText = config.C_t.toFixed(1);
+
+      // Recalculate forward from current hour with new parameters
+      propagateSimulationForward(currentHour);
+      renderStep(currentHour);
+    }
+
+    // Onload Setup & Event Wiring
+    window.onload = function() {
+      initBaseInputs();
+      propagateSimulationForward(0);
+      initCharts();
+      renderStep(0);
+
+      // Buttons Listeners
+      document.getElementById('btn-toggle-sim').addEventListener('click', () => {
+        if (isRunning) pauseSimulation();
+        else startSimulation();
+      });
+
+      document.getElementById('btn-reset-sim').addEventListener('click', resetSimulation);
+
+      document.getElementById('timeline-scrubber').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        renderStep(val);
+      });
+
+      // Speed Buttons
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('bg-hud-cyan', 'text-slate-950', 'font-bold'));
+          e.target.classList.add('bg-hud-cyan', 'text-slate-950', 'font-bold');
+          simSpeed = parseFloat(e.target.getAttribute('data-speed'));
+          logEvent(`Velocidad de simulación ajustada a ${simSpeed}x`, 'normal');
+          
+          if (isRunning) {
+            pauseSimulation();
+            startSimulation();
+          }
+        });
+      });
+
+      // --- FIX 1: INJECTION FROM CURRENTINDEX FORWARD ---
+      document.getElementById('btn-inject-stress').addEventListener('click', () => {
+        const duration = 12;
+        const endHour = Math.min(TOTAL_HOURS, currentHour + duration);
+        for (let i = currentHour; i < endHour; i++) {
+          simData.K_t[i] += 25.0;
+        }
+        propagateSimulationForward(currentHour);
+        renderStep(currentHour);
+        logEvent(`¡PICO DE ESTRÉS INYECTADO EN t=${currentHour}h! (+25 K_t durante ${duration}h)`, 'alert');
+      });
+
+      document.getElementById('btn-inject-rest').addEventListener('click', () => {
+        const duration = 12;
+        const endHour = Math.min(TOTAL_HOURS, currentHour + duration);
+        for (let i = currentHour; i < endHour; i++) {
+          simData.Rec_t[i] = 1.0;
+          simData.K_t[i] = 2.0;
+        }
+        propagateSimulationForward(currentHour);
+        renderStep(currentHour);
+        logEvent(`¡VENTANA DE REPOSO INYECTADA EN t=${currentHour}h! (Rec=1.0 por ${duration}h)`, 'success');
+      });
+
+      // --- FIX 2: MUTATE DEBT R_t AT CURRENTINDEX AND PROPAGATE FORWARD ---
+      document.getElementById('btn-reset-debt').addEventListener('click', () => {
+        propagateSimulationForward(currentHour, { R_t: 0.0 });
+        renderStep(currentHour);
+        logEvent(`Deuda R_t forzada a 0.0% en t=${currentHour}h. Propagación recalculada hacia adelante.`, 'info');
+      });
+
+      // Parameter Sliders
+      document.getElementById('slider-alpha').addEventListener('input', recalculateEngine);
+      document.getElementById('slider-beta').addEventListener('input', recalculateEngine);
+      document.getElementById('slider-gamma').addEventListener('input', recalculateEngine);
+      document.getElementById('slider-ct').addEventListener('input', recalculateEngine);
+    };
+  </script>
+</body>
+</html>
